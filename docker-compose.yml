@@ -2,7 +2,7 @@ name: realesrgan-service
 
 services:
   realesrgan:
-    image: ghcr.io/flyljx/convertimage-realesrgan:latest
+    image: ghcr.io/flyljx/convertimage-realesrgan:main-9448a5f58b9c09a9ed21152fc233534c4ccafadb
     container_name: realesrgan
     restart: unless-stopped
     ports:
