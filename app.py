@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 APP_TITLE = "Real-ESRGAN NCNN Vulkan Service"
 APP_VERSION = "1.0.2"
+BUILD_SHA = os.getenv("BUILD_SHA", "local")
 API_KEY = os.getenv("API_KEY", "").strip()
 DEFAULT_RUNTIME_DIR = Path(os.getenv("RUNTIME_DIR", "C:/aipi-upscale")).resolve()
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", str(DEFAULT_RUNTIME_DIR / "outputs"))).resolve()
@@ -82,7 +83,7 @@ def discover_ncnn_candidates() -> list[str]:
 def startup_log():
     print(
         f"[startup] version={APP_VERSION} runtime={DEFAULT_RUNTIME_DIR} "
-        f"ncnn_dir={NCNN_DIR} search_root={resolve_ncnn_search_root()} "
+        f"build_sha={BUILD_SHA} ncnn_dir={NCNN_DIR} search_root={resolve_ncnn_search_root()} "
         f"candidates={discover_ncnn_candidates()}",
         flush=True,
     )
@@ -259,6 +260,7 @@ def health(request: Request):
         "status": "ok",
         "service": APP_TITLE,
         "version": APP_VERSION,
+        "buildSha": BUILD_SHA,
         "model": MODEL_NAME,
         "outputDir": str(OUTPUT_DIR),
         "ncnnDir": str(NCNN_DIR),

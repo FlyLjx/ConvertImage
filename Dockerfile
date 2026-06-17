@@ -4,6 +4,7 @@ ARG http_proxy
 ARG https_proxy
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
+ARG BUILD_SHA=local
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
@@ -14,6 +15,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TMP_DIR=/runtime/tmp \
     HOST_BASE_URL=http://127.0.0.1:7860 \
     MODEL_NAME=realesrgan-x4plus \
+    BUILD_SHA=${BUILD_SHA} \
     UPSCALE_OUTSCALE=4 \
     GPU_ID=0 \
     http_proxy=${http_proxy} \
@@ -44,6 +46,7 @@ RUN mkdir -p /runtime /tmp/realesrgan-extract ${NCNN_DIR} \
   && cp "$(find /tmp/realesrgan-extract -name 'realesrgan-ncnn-vulkan' -type f | head -n 1)" "${NCNN_DIR}/realesrgan-ncnn-vulkan" \
   && chmod +x "${NCNN_DIR}/realesrgan-ncnn-vulkan" \
   && cp -r "$(find /tmp/realesrgan-extract -type d -name 'models' | head -n 1)/." "${NCNN_DIR}/models" \
+  && ldd "${NCNN_DIR}/realesrgan-ncnn-vulkan" \
   && rm -rf /tmp/realesrgan-ncnn-vulkan.zip /tmp/realesrgan-extract \
   && mkdir -p ${OUTPUT_DIR} ${TMP_DIR}
 

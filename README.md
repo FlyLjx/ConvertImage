@@ -29,6 +29,7 @@ ghcr.io/flyljx/convertimage-realesrgan:latest
 ## 服务器部署
 
 ```bash
+docker compose down
 docker compose pull
 docker compose up -d
 ```
