@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 
 APP_TITLE = "Real-ESRGAN NCNN Vulkan Service"
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 API_KEY = os.getenv("API_KEY", "").strip()
 DEFAULT_RUNTIME_DIR = Path(os.getenv("RUNTIME_DIR", "C:/aipi-upscale")).resolve()
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", str(DEFAULT_RUNTIME_DIR / "outputs"))).resolve()
@@ -51,16 +51,23 @@ class UpscaleRequest(BaseModel):
     output_format: Optional[str] = "png"
 
 
+def resolve_ncnn_search_root() -> Path:
+    if NCNN_DIR.exists():
+        return NCNN_DIR
+    return DEFAULT_RUNTIME_DIR
+
+
 def discover_ncnn_candidates() -> list[str]:
+    search_root = resolve_ncnn_search_root()
     candidates: list[str] = []
     configured = os.getenv("NCNN_EXE", "").strip()
     if configured:
         candidates.append(str(Path(configured).resolve()))
     candidates.append(str((NCNN_DIR / "realesrgan-ncnn-vulkan.exe").resolve()))
     candidates.append(str((NCNN_DIR / "realesrgan-ncnn-vulkan").resolve()))
-    for match in sorted(NCNN_DIR.rglob("realesrgan-ncnn-vulkan.exe")):
+    for match in sorted(search_root.rglob("realesrgan-ncnn-vulkan.exe")):
         candidates.append(str(match.resolve()))
-    for match in sorted(NCNN_DIR.rglob("realesrgan-ncnn-vulkan")):
+    for match in sorted(search_root.rglob("realesrgan-ncnn-vulkan")):
         candidates.append(str(match.resolve()))
     unique: list[str] = []
     seen = set()
@@ -69,6 +76,16 @@ def discover_ncnn_candidates() -> list[str]:
             unique.append(item)
             seen.add(item)
     return unique
+
+
+@app.on_event("startup")
+def startup_log():
+    print(
+        f"[startup] version={APP_VERSION} runtime={DEFAULT_RUNTIME_DIR} "
+        f"ncnn_dir={NCNN_DIR} search_root={resolve_ncnn_search_root()} "
+        f"candidates={discover_ncnn_candidates()}",
+        flush=True,
+    )
 
 
 def resolve_ncnn_exe() -> Path:
