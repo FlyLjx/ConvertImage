@@ -13,6 +13,8 @@ services:
       MODEL_NAME: "realesrgan-x4plus"
       UPSCALE_OUTSCALE: "4"
       GPU_ID: "0"
+      OUTPUT_DIR: "/runtime/outputs"
+      TMP_DIR: "/runtime/tmp"
     volumes:
-      - ./data:/runtime
-    command: ["sh", "-lc", "find /runtime -name realesrgan-ncnn-vulkan -type f -exec ls -l {} \\; && uvicorn app:app --host 0.0.0.0 --port 7860"]
+      - ./data/outputs:/runtime/outputs
+      - ./data/tmp:/runtime/tmp
