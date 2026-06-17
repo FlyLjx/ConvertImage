@@ -1,5 +1,10 @@
 FROM python:3.11-slim
 
+ARG http_proxy
+ARG https_proxy
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1 \
@@ -10,11 +15,16 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HOST_BASE_URL=http://127.0.0.1:7860 \
     MODEL_NAME=realesrgan-x4plus \
     UPSCALE_OUTSCALE=4 \
-    GPU_ID=0
+    GPU_ID=0 \
+    http_proxy=${http_proxy} \
+    https_proxy=${https_proxy} \
+    HTTP_PROXY=${HTTP_PROXY} \
+    HTTPS_PROXY=${HTTPS_PROXY}
 
 WORKDIR /srv
 
-RUN apt-get update \
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+  && apt-get update \
   && apt-get install -y --no-install-recommends \
     curl \
     unzip \

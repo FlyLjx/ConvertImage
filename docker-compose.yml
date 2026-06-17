@@ -2,7 +2,13 @@ name: realesrgan-service
 
 services:
   realesrgan:
-    build: .
+    build:
+      context: .
+      args:
+        http_proxy: ${http_proxy-}
+        https_proxy: ${https_proxy-}
+        HTTP_PROXY: ${HTTP_PROXY-}
+        HTTPS_PROXY: ${HTTPS_PROXY-}
     container_name: realesrgan
     restart: unless-stopped
     ports:
