@@ -28,6 +28,7 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.l
   && apt-get install -y --no-install-recommends \
     curl \
     unzip \
+    libgomp1 \
     libvulkan1 \
     mesa-vulkan-drivers \
     vulkan-tools \
