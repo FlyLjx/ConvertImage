@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.probe/
+.probe-git/
+.probe-multipart/
+.probe2/
+data/
+tmp/
+Real-ESRGAN/
+*.pyc
+*.pyo
+*.zip

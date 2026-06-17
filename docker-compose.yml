@@ -1,0 +1,17 @@
+name: realesrgan-service
+
+services:
+  realesrgan:
+    build: .
+    container_name: realesrgan
+    restart: unless-stopped
+    ports:
+      - "7860:7860"
+    environment:
+      API_KEY: "change-me"
+      HOST_BASE_URL: "http://127.0.0.1:7860"
+      MODEL_NAME: "realesrgan-x4plus"
+      UPSCALE_OUTSCALE: "4"
+      GPU_ID: "0"
+    volumes:
+      - ./data:/runtime

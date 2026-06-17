@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-ESRGAN 超分测试台</title>
+  <style>
+    :root {
+      --bg: #f3efe7;
+      --surface: rgba(255, 252, 246, 0.88);
+      --surface-strong: #fffaf2;
+      --ink: #1f2430;
+      --muted: #6c7280;
+      --line: rgba(38, 33, 26, 0.12);
+      --accent: #c5612f;
+      --accent-2: #efb366;
+      --ok: #1f8a57;
+      --danger: #c44536;
+      --shadow: 0 24px 60px rgba(66, 43, 11, 0.14);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(239, 179, 102, 0.4), transparent 30%),
+        radial-gradient(circle at top right, rgba(197, 97, 47, 0.18), transparent 28%),
+        linear-gradient(180deg, #f7f2ea 0%, #f0e8da 100%);
+    }
+
+    .shell {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-main {
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-main::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -120px auto;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(239, 179, 102, 0.65), transparent 68%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(197, 97, 47, 0.1);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1.02;
+    }
+
+    .hero-copy {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+      max-width: 56ch;
+    }
+
+    .hero-stats {
+      margin-top: 22px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .stat {
+      min-width: 140px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(38, 33, 26, 0.08);
+    }
+
+    .stat-label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .hero-side {
+      padding: 24px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .health {
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(38, 33, 26, 0.08);
+    }
+
+    .health strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    .health span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+      background: var(--muted);
+    }
+
+    .status-dot.ok {
+      background: var(--ok);
+      box-shadow: 0 0 0 6px rgba(31, 138, 87, 0.12);
+    }
+
+    .status-dot.bad {
+      background: var(--danger);
+      box-shadow: 0 0 0 6px rgba(196, 69, 54, 0.12);
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 380px minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      font-size: 20px;
+    }
+
+    .fields {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #4a4f59;
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+      font: inherit;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid rgba(38, 33, 26, 0.12);
+      background: rgba(255, 255, 255, 0.86);
+      border-radius: 14px;
+      padding: 12px 14px;
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgba(197, 97, 47, 0.55);
+      box-shadow: 0 0 0 4px rgba(197, 97, 47, 0.1);
+      transform: translateY(-1px);
+    }
+
+    textarea {
+      min-height: 82px;
+      resize: vertical;
+    }
+
+    .dropzone {
+      position: relative;
+      border: 1.5px dashed rgba(197, 97, 47, 0.35);
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 247, 238, 0.88));
+      min-height: 180px;
+      padding: 18px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+    }
+
+    .dropzone:hover,
+    .dropzone.dragging {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 241, 226, 0.94));
+    }
+
+    .dropzone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .dropzone strong {
+      display: block;
+      font-size: 17px;
+      margin-bottom: 8px;
+    }
+
+    .dropzone span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 28px rgba(66, 43, 11, 0.18);
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-primary {
+      color: #fff;
+      background: linear-gradient(135deg, #c5612f, #e38742);
+    }
+
+    .btn-secondary {
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(38, 33, 26, 0.1);
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .preview-card {
+      background: var(--surface-strong);
+      border: 1px solid rgba(38, 33, 26, 0.08);
+      border-radius: 22px;
+      padding: 16px;
+    }
+
+    .preview-card h3 {
+      margin: 0 0 12px;
+      font-size: 15px;
+    }
+
+    .preview-box {
+      position: relative;
+      min-height: 320px;
+      border-radius: 18px;
+      overflow: hidden;
+      background:
+        linear-gradient(45deg, rgba(0, 0, 0, 0.04) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.04) 75%),
+        linear-gradient(45deg, rgba(0, 0, 0, 0.04) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.04) 75%);
+      background-size: 22px 22px;
+      background-position: 0 0, 11px 11px;
+      border: 1px solid rgba(38, 33, 26, 0.08);
+      display: grid;
+      place-items: center;
+    }
+
+    .preview-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: rgba(255, 255, 255, 0.75);
+    }
+
+    .placeholder {
+      padding: 18px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .meta-list {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .meta-list strong {
+      color: var(--ink);
+    }
+
+    .log {
+      margin-top: 18px;
+      border-radius: 18px;
+      background: #191714;
+      color: #f7f1e7;
+      padding: 14px;
+      min-height: 170px;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 12px;
+      line-height: 1.65;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+
+    .tip {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(197, 97, 47, 0.16);
+      background: rgba(255, 247, 237, 0.84);
+      color: #6d4f2f;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .tip code {
+      color: #8b3f16;
+    }
+
+    @media (max-width: 1100px) {
+      .hero,
+      .workspace,
+      .preview-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        padding: 20px 14px 32px;
+      }
+
+      .hero-main,
+      .hero-side,
+      .panel {
+        padding: 18px;
+      }
+
+      h1 {
+        font-size: 32px;
+      }
+
+      .preview-box {
+        min-height: 220px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="card hero-main">
+        <div class="eyebrow">REAL-ESRGAN CPU TEST LAB</div>
+        <h1>独立超分测试台</h1>
+        <p class="hero-copy">
+          这个页面只测试当前超分服务本身，不依赖 AIπ。上传一张图片，直接调用
+          <code>/v1/images/upscale/upload</code>，就能验证接口、模型、出图链路是否正常。
+        </p>
+        <div class="hero-stats">
+          <div class="stat">
+            <span class="stat-label">服务地址</span>
+            <span class="stat-value" id="statBaseUrl">-</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">默认模型</span>
+            <span class="stat-value" id="statModel">-</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">最近耗时</span>
+            <span class="stat-value" id="statDuration">-</span>
+          </div>
+        </div>
+      </div>
+      <div class="card hero-side">
+        <div class="health">
+          <strong><span class="status-dot" id="healthDot"></span><span id="healthText">检测中</span></strong>
+          <span id="healthSub">正在读取健康状态...</span>
+        </div>
+        <div class="health">
+          <strong>接口说明</strong>
+          <span>上传模式调用 <code>/v1/images/upscale/upload</code>，支持表单文件上传。</span>
+        </div>
+        <div class="health">
+          <strong>测试建议</strong>
+          <span>优先先传一张小图或文字截图，确认服务链路稳定，再测大图。</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <div class="card panel">
+        <h2>请求参数</h2>
+        <div class="fields">
+          <div class="field">
+            <label for="baseUrl">服务地址</label>
+            <input id="baseUrl" value="http://127.0.0.1:7860" />
+          </div>
+          <div class="field">
+            <label for="apiKey">API Key</label>
+            <input id="apiKey" value="change-me" placeholder="没有鉴权可以留空" />
+          </div>
+          <div class="field">
+            <label for="modelSelect">模型</label>
+            <select id="modelSelect">
+              <option value="realesrgan-x4plus">realesrgan-x4plus</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="gpuIdInput">GPU ID</label>
+            <input id="gpuIdInput" value="0" placeholder="一般 0 先试 RX 6600，不行再试 1" />
+          </div>
+          <div class="field">
+            <label for="promptInput">备注 Prompt</label>
+            <textarea id="promptInput" placeholder="这里只是调试备注，当前服务不会用它参与推理。"></textarea>
+          </div>
+          <div class="field">
+            <label>选择图片</label>
+            <label class="dropzone" id="dropzone">
+              <input id="fileInput" type="file" accept="image/*" />
+              <div>
+                <strong>点击或拖拽上传图片</strong>
+                <span id="fileHint">支持 PNG / JPG / WEBP，建议先用一张小图测试。</span>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="runBtn">开始超分</button>
+          <button class="btn btn-secondary" id="healthBtn">检查服务</button>
+          <button class="btn btn-secondary" id="modelsBtn">刷新模型</button>
+          <button class="btn btn-secondary" id="resetBtn">清空</button>
+        </div>
+        <div class="tip">
+          如果你把服务改成了别的地址或端口，先改上面的 <code>服务地址</code> 再测试。
+          如果你没改过启动脚本，默认 key 一般就是 <code>change-me</code>。
+        </div>
+      </div>
+
+      <div class="card panel">
+        <h2>预览结果</h2>
+        <div class="preview-grid">
+          <div class="preview-card">
+            <h3>原图</h3>
+            <div class="preview-box" id="sourceBox">
+              <div class="placeholder">还没选择图片</div>
+            </div>
+            <div class="meta-list" id="sourceMeta"></div>
+          </div>
+          <div class="preview-card">
+            <h3>超分后</h3>
+            <div class="preview-box" id="resultBox">
+              <div class="placeholder">结果会显示在这里</div>
+            </div>
+            <div class="meta-list" id="resultMeta"></div>
+          </div>
+        </div>
+        <div class="log" id="logBox">[init] 页面已加载，等待操作...</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const state = {
+      file: null,
+      resultUrl: '',
+      models: [],
+    };
+
+    const els = {
+      baseUrl: document.getElementById('baseUrl'),
+      apiKey: document.getElementById('apiKey'),
+      modelSelect: document.getElementById('modelSelect'),
+      gpuIdInput: document.getElementById('gpuIdInput'),
+      promptInput: document.getElementById('promptInput'),
+      fileInput: document.getElementById('fileInput'),
+      fileHint: document.getElementById('fileHint'),
+      runBtn: document.getElementById('runBtn'),
+      healthBtn: document.getElementById('healthBtn'),
+      modelsBtn: document.getElementById('modelsBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+      logBox: document.getElementById('logBox'),
+      sourceBox: document.getElementById('sourceBox'),
+      resultBox: document.getElementById('resultBox'),
+      sourceMeta: document.getElementById('sourceMeta'),
+      resultMeta: document.getElementById('resultMeta'),
+      statBaseUrl: document.getElementById('statBaseUrl'),
+      statModel: document.getElementById('statModel'),
+      statDuration: document.getElementById('statDuration'),
+      healthDot: document.getElementById('healthDot'),
+      healthText: document.getElementById('healthText'),
+      healthSub: document.getElementById('healthSub'),
+      dropzone: document.getElementById('dropzone'),
+    };
+
+    function normalizeBaseUrl(value) {
+      return (value || '').trim().replace(/\/+$/, '');
+    }
+
+    function appendLog(message) {
+      const now = new Date();
+      const time = now.toLocaleTimeString('zh-CN', { hour12: false });
+      els.logBox.textContent += `\n[${time}] ${message}`;
+      els.logBox.scrollTop = els.logBox.scrollHeight;
+    }
+
+    function setHealth(ok, title, desc) {
+      els.healthDot.className = `status-dot ${ok ? 'ok' : 'bad'}`;
+      els.healthText.textContent = title;
+      els.healthSub.textContent = desc;
+    }
+
+    function formatSize(size) {
+      if (!size && size !== 0) return '-';
+      if (size < 1024) return `${size} B`;
+      if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+      return `${(size / 1024 / 1024).toFixed(2)} MB`;
+    }
+
+    function createImageBox(target, src, alt) {
+      target.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = alt;
+      target.appendChild(img);
+    }
+
+    function setPlaceholder(target, text) {
+      target.innerHTML = `<div class="placeholder">${text}</div>`;
+    }
+
+    function setMeta(target, lines) {
+      target.innerHTML = lines.map((line) => `<div>${line}</div>`).join('');
+    }
+
+    function authHeaders() {
+      const apiKey = els.apiKey.value.trim();
+      if (!apiKey) return {};
+      return { Authorization: `Bearer ${apiKey}` };
+    }
+
+    async function refreshHealth() {
+      const baseUrl = normalizeBaseUrl(els.baseUrl.value);
+      els.statBaseUrl.textContent = baseUrl || '-';
+      try {
+        appendLog(`检测健康状态: ${baseUrl}/health`);
+        const response = await fetch(`${baseUrl}/health`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        setHealth(true, '服务在线', `${data.service} / 模型: ${data.model}`);
+        els.statModel.textContent = data.model || '-';
+        appendLog(`健康检查成功，模型: ${data.model}`);
+      } catch (error) {
+        setHealth(false, '服务异常', error.message || '无法连接');
+        appendLog(`健康检查失败: ${error.message || error}`);
+      }
+    }
+
+    async function refreshModels() {
+      const baseUrl = normalizeBaseUrl(els.baseUrl.value);
+      try {
+        appendLog(`获取模型列表: ${baseUrl}/v1/models`);
+        const response = await fetch(`${baseUrl}/v1/models`, {
+          headers: authHeaders(),
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`HTTP ${response.status} ${text}`);
+        }
+        const data = await response.json();
+        state.models = Array.isArray(data.data) ? data.data : [];
+        els.modelSelect.innerHTML = '';
+        if (!state.models.length) {
+          els.modelSelect.innerHTML = '<option value="realesrgan-x4plus">realesrgan-x4plus</option>';
+        } else {
+          for (const item of state.models) {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.id;
+            els.modelSelect.appendChild(option);
+          }
+        }
+        appendLog(`模型加载完成，共 ${els.modelSelect.options.length} 个`);
+      } catch (error) {
+        appendLog(`模型加载失败: ${error.message || error}`);
+      }
+    }
+
+    function handleSelectedFile(file) {
+      state.file = file || null;
+      if (!file) {
+        els.fileHint.textContent = '支持 PNG / JPG / WEBP，建议先用一张小图测试。';
+        setPlaceholder(els.sourceBox, '还没选择图片');
+        setMeta(els.sourceMeta, []);
+        return;
+      }
+
+      els.fileHint.textContent = `${file.name} · ${formatSize(file.size)}`;
+      const localUrl = URL.createObjectURL(file);
+      createImageBox(els.sourceBox, localUrl, file.name);
+      setMeta(els.sourceMeta, [
+        `<strong>文件名:</strong> ${file.name}`,
+        `<strong>大小:</strong> ${formatSize(file.size)}`,
+        `<strong>类型:</strong> ${file.type || 'unknown'}`,
+      ]);
+      appendLog(`已选择文件: ${file.name} (${formatSize(file.size)})`);
+    }
+
+    async function runUpscale() {
+      const baseUrl = normalizeBaseUrl(els.baseUrl.value);
+      if (!state.file) {
+        appendLog('请先选择一张图片。');
+        return;
+      }
+
+      els.runBtn.disabled = true;
+      setPlaceholder(els.resultBox, '正在超分，请稍等...');
+      setMeta(els.resultMeta, []);
+
+      const form = new FormData();
+      form.append('model', els.modelSelect.value || 'realesrgan-x4plus');
+      form.append('gpu_id', els.gpuIdInput.value || '0');
+      form.append('prompt', els.promptInput.value || '');
+      form.append('image', state.file);
+
+      const startedAt = performance.now();
+      appendLog(`开始超分: ${state.file.name}`);
+
+      try {
+        const response = await fetch(`${baseUrl}/v1/images/upscale/upload`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: form,
+        });
+
+        const raw = await response.text();
+        let data = null;
+        try {
+          data = JSON.parse(raw);
+        } catch (error) {
+          data = null;
+        }
+
+        if (!response.ok) {
+          const detail = data && data.detail ? data.detail : raw;
+          throw new Error(detail || `HTTP ${response.status}`);
+        }
+
+        const duration = Math.round(performance.now() - startedAt);
+        const resultUrl = data && data.data && data.data[0] ? data.data[0].url : '';
+        if (!resultUrl) {
+          throw new Error('接口没有返回结果图片 URL');
+        }
+
+        state.resultUrl = resultUrl;
+        els.statDuration.textContent = `${duration} ms`;
+        createImageBox(els.resultBox, `${resultUrl}?t=${Date.now()}`, '超分结果');
+        setMeta(els.resultMeta, [
+          `<strong>模型:</strong> ${data.model || els.modelSelect.value}`,
+          `<strong>GPU ID:</strong> ${data.gpu_id || els.gpuIdInput.value || '0'}`,
+          `<strong>耗时:</strong> ${duration} ms`,
+          `<strong>结果地址:</strong> <a href="${resultUrl}" target="_blank">${resultUrl}</a>`,
+        ]);
+        appendLog(`超分成功，耗时 ${duration} ms`);
+        appendLog(`输出地址: ${resultUrl}`);
+      } catch (error) {
+        els.statDuration.textContent = '-';
+        setPlaceholder(els.resultBox, `超分失败\n${error.message || error}`);
+        appendLog(`超分失败: ${error.message || error}`);
+      } finally {
+        els.runBtn.disabled = false;
+      }
+    }
+
+    function resetAll() {
+      state.file = null;
+      state.resultUrl = '';
+      els.fileInput.value = '';
+      els.promptInput.value = '';
+      els.fileHint.textContent = '支持 PNG / JPG / WEBP，建议先用一张小图测试。';
+      els.statDuration.textContent = '-';
+      setPlaceholder(els.sourceBox, '还没选择图片');
+      setPlaceholder(els.resultBox, '结果会显示在这里');
+      setMeta(els.sourceMeta, []);
+      setMeta(els.resultMeta, []);
+      els.logBox.textContent = '[init] 页面已重置，等待操作...';
+    }
+
+    els.fileInput.addEventListener('change', (event) => {
+      handleSelectedFile(event.target.files[0]);
+    });
+
+    ['dragenter', 'dragover'].forEach((name) => {
+      els.dropzone.addEventListener(name, (event) => {
+        event.preventDefault();
+        els.dropzone.classList.add('dragging');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach((name) => {
+      els.dropzone.addEventListener(name, (event) => {
+        event.preventDefault();
+        els.dropzone.classList.remove('dragging');
+      });
+    });
+
+    els.dropzone.addEventListener('drop', (event) => {
+      const file = event.dataTransfer.files[0];
+      if (file) {
+        handleSelectedFile(file);
+      }
+    });
+
+    els.runBtn.addEventListener('click', runUpscale);
+    els.healthBtn.addEventListener('click', refreshHealth);
+    els.modelsBtn.addEventListener('click', refreshModels);
+    els.resetBtn.addEventListener('click', resetAll);
+
+    refreshHealth();
+    refreshModels();
+  </script>
+</body>
+</html>
