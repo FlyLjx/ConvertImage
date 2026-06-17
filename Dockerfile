@@ -39,8 +39,9 @@ RUN pip install --upgrade pip \
 
 RUN mkdir -p /runtime \
   && curl -L https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip -o /tmp/realesrgan-ncnn-vulkan.zip \
-  && unzip /tmp/realesrgan-ncnn-vulkan.zip -d /runtime/realesrgan-ncnn-vulkan \
+  && unzip /tmp/realesrgan-ncnn-vulkan.zip -d /runtime \
   && rm -f /tmp/realesrgan-ncnn-vulkan.zip \
+  && find /runtime -name 'realesrgan-ncnn-vulkan' -type f -exec chmod +x {} \; \
   && mkdir -p ${OUTPUT_DIR} ${TMP_DIR}
 
 COPY app.py /srv/app.py

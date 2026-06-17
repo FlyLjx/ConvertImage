@@ -60,7 +60,13 @@ def resolve_ncnn_exe() -> Path:
     direct = NCNN_DIR / "realesrgan-ncnn-vulkan.exe"
     if direct.exists():
         return direct.resolve()
+    direct_linux = NCNN_DIR / "realesrgan-ncnn-vulkan"
+    if direct_linux.exists():
+        return direct_linux.resolve()
     matches = sorted(NCNN_DIR.rglob("realesrgan-ncnn-vulkan.exe"))
+    if matches:
+        return matches[0].resolve()
+    matches = sorted(NCNN_DIR.rglob("realesrgan-ncnn-vulkan"))
     if matches:
         return matches[0].resolve()
     raise HTTPException(status_code=500, detail="realesrgan-ncnn-vulkan.exe not found, run install.ps1 first")
