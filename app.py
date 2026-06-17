@@ -8,14 +8,14 @@ from pathlib import Path
 from typing import Optional
 
 import requests
-from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 
 APP_TITLE = "Real-ESRGAN NCNN Vulkan Service"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 API_KEY = os.getenv("API_KEY", "").strip()
 DEFAULT_RUNTIME_DIR = Path(os.getenv("RUNTIME_DIR", "C:/aipi-upscale")).resolve()
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", str(DEFAULT_RUNTIME_DIR / "outputs"))).resolve()
@@ -51,25 +51,50 @@ class UpscaleRequest(BaseModel):
     output_format: Optional[str] = "png"
 
 
-def resolve_ncnn_exe() -> Path:
+def discover_ncnn_candidates() -> list[str]:
+    candidates: list[str] = []
     configured = os.getenv("NCNN_EXE", "").strip()
     if configured:
-        path = Path(configured).resolve()
+        candidates.append(str(Path(configured).resolve()))
+    candidates.append(str((NCNN_DIR / "realesrgan-ncnn-vulkan.exe").resolve()))
+    candidates.append(str((NCNN_DIR / "realesrgan-ncnn-vulkan").resolve()))
+    for match in sorted(NCNN_DIR.rglob("realesrgan-ncnn-vulkan.exe")):
+        candidates.append(str(match.resolve()))
+    for match in sorted(NCNN_DIR.rglob("realesrgan-ncnn-vulkan")):
+        candidates.append(str(match.resolve()))
+    unique: list[str] = []
+    seen = set()
+    for item in candidates:
+        if item not in seen:
+            unique.append(item)
+            seen.add(item)
+    return unique
+
+
+def resolve_ncnn_exe() -> Path:
+    for candidate in discover_ncnn_candidates():
+        path = Path(candidate)
         if path.exists():
             return path
-    direct = NCNN_DIR / "realesrgan-ncnn-vulkan.exe"
-    if direct.exists():
-        return direct.resolve()
-    direct_linux = NCNN_DIR / "realesrgan-ncnn-vulkan"
-    if direct_linux.exists():
-        return direct_linux.resolve()
-    matches = sorted(NCNN_DIR.rglob("realesrgan-ncnn-vulkan.exe"))
-    if matches:
-        return matches[0].resolve()
-    matches = sorted(NCNN_DIR.rglob("realesrgan-ncnn-vulkan"))
-    if matches:
-        return matches[0].resolve()
-    raise HTTPException(status_code=500, detail="realesrgan-ncnn-vulkan.exe not found, run install.ps1 first")
+    raise HTTPException(
+        status_code=500,
+        detail=f"realesrgan-ncnn-vulkan not found; version={APP_VERSION}; ncnn_dir={NCNN_DIR}; candidates={discover_ncnn_candidates()}",
+    )
+
+
+def resolve_public_base_url(request: Request) -> str:
+    forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(",")[0].strip()
+    forwarded_host = (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
+    forwarded_port = (request.headers.get("x-forwarded-port") or "").split(",")[0].strip()
+    host = forwarded_host or request.headers.get("host") or request.url.netloc
+    scheme = forwarded_proto or request.url.scheme or "http"
+    if forwarded_port and host and ":" not in host:
+        default_port = "443" if scheme == "https" else "80"
+        if forwarded_port != default_port:
+            host = f"{host}:{forwarded_port}"
+    if host:
+        return f"{scheme}://{host}".rstrip("/")
+    return HOST_BASE_URL
 
 
 def require_api_key(authorization: Optional[str]) -> None:
@@ -207,12 +232,22 @@ def run_upscale(input_path: Path, model_name: str, gpu_id: str) -> Path:
 
 
 @app.get("/health")
-def health():
+def health(request: Request):
+    ncnn_candidates = discover_ncnn_candidates()
+    try:
+        ncnn_exe = str(resolve_ncnn_exe())
+    except HTTPException:
+        ncnn_exe = ""
     return {
         "status": "ok",
         "service": APP_TITLE,
+        "version": APP_VERSION,
         "model": MODEL_NAME,
         "outputDir": str(OUTPUT_DIR),
+        "ncnnDir": str(NCNN_DIR),
+        "ncnnExe": ncnn_exe,
+        "ncnnCandidates": ncnn_candidates,
+        "publicBaseUrl": resolve_public_base_url(request),
     }
 
 
@@ -257,6 +292,7 @@ def output_file(filename: str):
 
 @app.post("/v1/images/upscale")
 async def upscale_image(
+    request: Request,
     authorization: Optional[str] = Header(default=None),
     body: Optional[UpscaleRequest] = None,
 ):
@@ -268,10 +304,11 @@ async def upscale_image(
         workdir = Path(temp_dir)
         input_path = resolve_input_file(workdir, body.image_url, body.image, None)
         output_path = run_upscale(input_path, model_name, gpu_id)
+    public_base_url = resolve_public_base_url(request)
     return JSONResponse(
         {
             "created": int(output_path.stat().st_mtime),
-            "data": [{"url": f"{HOST_BASE_URL}/outputs/{output_path.name}"}],
+            "data": [{"url": f"{public_base_url}/outputs/{output_path.name}"}],
             "model": model_name,
             "gpu_id": gpu_id,
         }
@@ -280,6 +317,7 @@ async def upscale_image(
 
 @app.post("/v1/images/upscale/upload")
 async def upscale_image_upload(
+    request: Request,
     authorization: Optional[str] = Header(default=None),
     model: str = Form(default=MODEL_NAME),
     gpu_id: str = Form(default=GPU_ID),
@@ -294,9 +332,10 @@ async def upscale_image_upload(
         workdir = Path(temp_dir)
         input_path = resolve_input_file(workdir, None, None, image)
         output_path = run_upscale(input_path, model_name, selected_gpu_id)
+    public_base_url = resolve_public_base_url(request)
     return {
         "created": int(output_path.stat().st_mtime),
-        "data": [{"url": f"{HOST_BASE_URL}/outputs/{output_path.name}"}],
+        "data": [{"url": f"{public_base_url}/outputs/{output_path.name}"}],
         "model": model_name,
         "gpu_id": selected_gpu_id,
     }
