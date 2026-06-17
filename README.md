@@ -10,26 +10,37 @@
 - `POST /v1/images/upscale/upload`
 - `GET /test`
 
-## Docker
+## 本地 Windows 测试
+
+```powershell
+cd E:\Users\Administrator\Desktop\代码\超分服务
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+## GitHub Actions
+
+推送到 `main` 后会自动构建并推送镜像到：
+
+```text
+ghcr.io/flyljx/convertimage-realesrgan:latest
+```
+
+## 服务器部署
 
 ```bash
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 ## 测试页
-
-打开：
 
 ```text
 http://127.0.0.1:7860/test
 ```
 
-## GitHub Actions
-
-仓库内已配置 `.github/workflows/docker.yml`，推送到 `main` 会自动做 Docker build 检查。
-
 ## 说明
 
-- Windows 仍可用 `start.ps1` 测试
-- GPU 默认走 `GPU_ID=0`
-- 需要切核显/独显时，改测试页里的 `GPU ID`
+- 默认模型：`realesrgan-x4plus`
+- 默认 GPU：`GPU_ID=0`
+- 如果机器有核显和独显，可在测试页切换 `GPU ID`
