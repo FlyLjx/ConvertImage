@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1 \
     RUNTIME_DIR=/runtime \
-    NCNN_DIR=/runtime/realesrgan-ncnn-vulkan \
+    NCNN_DIR=/opt/realesrgan \
     OUTPUT_DIR=/runtime/outputs \
     TMP_DIR=/runtime/tmp \
     HOST_BASE_URL=http://127.0.0.1:7860 \
@@ -37,11 +37,13 @@ COPY requirements.txt /srv/requirements.txt
 RUN pip install --upgrade pip \
   && pip install -r /srv/requirements.txt
 
-RUN mkdir -p /runtime \
+RUN mkdir -p /runtime /tmp/realesrgan-extract ${NCNN_DIR} \
   && curl -L https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip -o /tmp/realesrgan-ncnn-vulkan.zip \
-  && unzip /tmp/realesrgan-ncnn-vulkan.zip -d /runtime \
-  && rm -f /tmp/realesrgan-ncnn-vulkan.zip \
-  && find /runtime -name 'realesrgan-ncnn-vulkan' -type f -exec chmod +x {} \; \
+  && unzip /tmp/realesrgan-ncnn-vulkan.zip -d /tmp/realesrgan-extract \
+  && cp "$(find /tmp/realesrgan-extract -name 'realesrgan-ncnn-vulkan' -type f | head -n 1)" "${NCNN_DIR}/realesrgan-ncnn-vulkan" \
+  && chmod +x "${NCNN_DIR}/realesrgan-ncnn-vulkan" \
+  && cp -r "$(find /tmp/realesrgan-extract -type d -name 'models' | head -n 1)/." "${NCNN_DIR}/models" \
+  && rm -rf /tmp/realesrgan-ncnn-vulkan.zip /tmp/realesrgan-extract \
   && mkdir -p ${OUTPUT_DIR} ${TMP_DIR}
 
 COPY app.py /srv/app.py

@@ -13,6 +13,7 @@ services:
       MODEL_NAME: "realesrgan-x4plus"
       UPSCALE_OUTSCALE: "4"
       GPU_ID: "0"
+      NCNN_DIR: "/opt/realesrgan"
       OUTPUT_DIR: "/runtime/outputs"
       TMP_DIR: "/runtime/tmp"
     volumes:
